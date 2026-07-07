@@ -7,7 +7,8 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import morgan from "morgan";
-import { toNodeHandler } from "better-auth/node";
+import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
+import { auth } from "./lib/auth";
 
 dotenv.config();
 const app: Application = express();
@@ -39,6 +40,13 @@ if (process.env.NODE_ENV === "development") {
 // Routes
 app.get("/", (req: Request, res: Response) => {
     res.send("Hello from the Backend!");
+});
+// Test better-auth
+app.get("/api/me", async (req: Request, res: Response) => {
+    const session = await auth.api.getSession({
+        headers: fromNodeHeaders(req.headers),
+    });
+    return res.json(session);
 });
 
 // global error handler

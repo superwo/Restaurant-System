@@ -15,4 +15,21 @@ export const auth = betterAuth({
             },
         },
     },
+    emailAndPassword: {
+        enabled: true,
+        autoSignIn: true, // Automatically sign in users after they sign up
+    },
+    account: {
+        accountLinking: {
+            enabled: true,
+        },
+    },
+    baseURL: "http://localhost:5000",
+    trustedOrigins: [process.env.CLIENT_URL || "http://localhost:5173"],
+    socialProviders: {
+        google: {
+            clientId: process.env.GOOGLE_CLIENT_ID as string,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+        },
+    },
 })

@@ -7,6 +7,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import morgan from "morgan";
+import { toNodeHandler } from "better-auth/node";
 
 dotenv.config();
 const app: Application = express();
@@ -20,6 +21,9 @@ app.use(cors({
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+// better-auth
+app.all("/api/auth/*splat", toNodeHandler(auth));
 
 // Parsing incoming requests
 app.use(express.json());

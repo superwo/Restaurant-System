@@ -9,6 +9,7 @@ import bodyParser from "body-parser";
 import morgan from "morgan";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
+import categoryRouter from "./routes/category";
 
 dotenv.config();
 const app: Application = express();
@@ -41,6 +42,7 @@ if (process.env.NODE_ENV === "development") {
 app.get("/", (req: Request, res: Response) => {
     res.send("Hello from the Backend!");
 });
+app.use("/api/category", categoryRouter);
 // Test better-auth
 app.get("/api/me", async (req: Request, res: Response) => {
     const session = await auth.api.getSession({

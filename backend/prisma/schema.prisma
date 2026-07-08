@@ -11,7 +11,6 @@ datasource db {
 // ==========================================
 // 1. User MODELS
 // ==========================================
-
 enum Role {
   ADMIN
   MANAGER
@@ -35,11 +34,16 @@ model User {
   phone            String?
   banned           Boolean  @default(false)
   banReason        String?
+  stripeCustomerId String?
 
   // Relations
-  sessions   Session[]
-  accounts   Account[]
-  twoFactors TwoFactor[]
+  sessions      Session[]
+  accounts      Account[]
+  twoFactors    TwoFactor[]
+  activitiesLog activitiesLog[]
+  feedbacks     Feedback[] // 👈 NEW: Relation to feedbacks
+  reservations  Reservation[] // 👈 NEW: Relation to reservations
+  orders        Order[] // 👈 NEW: Relation to orders
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -113,4 +117,154 @@ model TwoFactor {
   @@index([secret])
   @@index([userId])
   @@map("twoFactor")
+}
+
+// ==========================================
+// 2. RESTAURANT BUSINESS MODELS
+// ==========================================
+model Category {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String @unique
+  // optional
+  slug String @unique
+
+  items menuItem[]
+}
+
+model activitiesLog {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  action  String
+  details String?
+
+  createdAt DateTime @default(now())
+}
+
+model menuItem {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  Json?
+  price        Float
+  discount     Float?   @default(0)
+  image        String?
+  isAvailable  Boolean  @default(true)
+  recipe       String?
+  categoryId   String   @db.ObjectId
+  category     Category @relation(fields: [categoryId], references: [id])
+  aiSuggestion String? // 👈 NEW: Stores Gemini's advice for bad reviews
+
+  feedbacks  Feedback[] // 👈 NEW: Relation to feedbacks
+  orderItems OrderItem[] // 👈 NEW: Relation to order items
+}
+
+model Feedback {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  rating     Int // 1 to 5 stars
+  comment    String?
+  menuItemId String   @db.ObjectId
+  menuItem   menuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+enum TableType {
+  square
+  circle
+  rectangle
+}
+
+model Table {
+  id      String      @id @default(auto()) @map("_id") @db.ObjectId
+  name    String      @unique // e.g., "05", "06", "VIP 1"
+  seats   Int
+  section String      @default("Main Dining Room") // Main Dining Room, Outdoor, Terrace
+  shape   TableType   @default(square) // square, circle, rectangle
+  status  TableStatus @default(AVAILABLE)
+
+  reservations Reservation[]
+  orders       Order[] // 👈 NEW: Relation to orders
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Reservation {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  customerName String? // Useful if guest booking
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id])
+  tableId      String        @db.ObjectId
+  table        Table         @relation(fields: [tableId], references: [id])
+  date         DateTime
+  guests       Int
+  status       BookingStatus @default(PENDING)
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  ONLINE
+}
+
+model Order {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  orderType     OrderType // DINE_IN, TAKEAWAY, DELIVERY
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod PaymentMethod @default(ONLINE)
+  totalAmount   Float
+
+  // Relations
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [id])
+  tableId String? @db.ObjectId // Only for DINE_IN
+  table   Table?  @relation(fields: [tableId], references: [id])
+
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId    String   @db.ObjectId
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String   @db.ObjectId
+  menuItem   menuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  price      Float // Snapshot of price at time of order
+  notes      String? // e.g., "No onions"
 }
